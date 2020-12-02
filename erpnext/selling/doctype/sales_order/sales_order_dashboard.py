@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 from frappe import _
 
 def get_data():
@@ -5,6 +6,11 @@ def get_data():
 		'fieldname': 'sales_order',
 		'non_standard_fieldnames': {
 			'Delivery Note': 'against_sales_order',
+			'Journal Entry': 'reference_name',
+			'Payment Entry': 'reference_name',
+			'Payment Request': 'reference_name',
+			'Auto Repeat': 'reference_document',
+			'Maintenance Visit': 'prevdoc_docname'
 		},
 		'internal_links': {
 			'Quotation': ['items', 'prevdoc_docname']
@@ -12,7 +18,7 @@ def get_data():
 		'transactions': [
 			{
 				'label': _('Fulfillment'),
-				'items': ['Sales Invoice', 'Delivery Note']
+				'items': ['Sales Invoice', 'Pick List', 'Delivery Note', 'Maintenance Visit']
 			},
 			{
 				'label': _('Purchasing'),
@@ -24,11 +30,15 @@ def get_data():
 			},
 			{
 				'label': _('Manufacturing'),
-				'items': ['Production Order']
+				'items': ['Work Order']
 			},
 			{
 				'label': _('Reference'),
-				'items': ['Quotation']
+				'items': ['Quotation', 'Auto Repeat']
+			},
+			{
+				'label': _('Payment'),
+				'items': ['Payment Entry', 'Payment Request', 'Journal Entry']
 			},
 		]
 	}

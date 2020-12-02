@@ -11,7 +11,7 @@ from frappe.model.document import Document
 class LeaveControlPanel(Document):
 	def get_employees(self):
 		conditions, values = [], []
-		for field in ["employment_type", "branch", "designation", "department"]:
+		for field in ["company", "employment_type", "branch", "designation", "department"]:
 			if self.get(field):
 				conditions.append("{0}=%s".format(field))
 				values.append(self.get(field))
@@ -27,10 +27,7 @@ class LeaveControlPanel(Document):
 		for f in ["from_date", "to_date", "leave_type", "no_of_days"]:
 			if not self.get(f):
 				frappe.throw(_("{0} is required").format(self.meta.get_label(f)))
-
-	def to_date_validation(self):
-		if date_diff(self.to_date, self.from_date) <= 0:
-			return "Invalid period"
+		self.validate_from_to_dates('from_date', 'to_date')
 
 	def allocate_leave(self):
 		self.validate_values()

@@ -9,8 +9,8 @@ frappe.listview_settings['Task'] = {
 			listview.call_for_selected_items(method, {"status": "Open"});
 		});
 
-		listview.page.add_menu_item(__("Set as Closed"), function() {
-			listview.call_for_selected_items(method, {"status": "Closed"});
+		listview.page.add_menu_item(__("Set as Completed"), function() {
+			listview.call_for_selected_items(method, {"status": "Completed"});
 		});
 	},
 	get_indicator: function(doc) {
@@ -19,15 +19,24 @@ frappe.listview_settings['Task'] = {
 			"Overdue": "red",
 			"Pending Review": "orange",
 			"Working": "orange",
-			"Closed": "green",
+			"Completed": "green",
 			"Cancelled": "dark grey"
 		}
 		return [__(doc.status), colors[doc.status], "status,=," + doc.status];
 	},
 	gantt_custom_popup_html: function(ganttobj, task) {
-		var html = `<h5>${ganttobj.name}</h5>`;
+		var html = `<h5><a style="text-decoration:underline"\
+			href="#Form/Task/${ganttobj.id}""> ${ganttobj.name} </a></h5>`;
+
 		if(task.project) html += `<p>Project: ${task.project}</p>`;
 		html += `<p>Progress: ${ganttobj.progress}</p>`;
+
+		if(task._assign_list) {
+			html += task._assign_list.reduce(
+				(html, user) => html + frappe.avatar(user)
+			, '');
+		}
+
 		return html;
 	}
 
