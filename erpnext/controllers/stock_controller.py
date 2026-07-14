@@ -1356,12 +1356,6 @@ class StockController(AccountsController):
 			],
 		}.get(self.doctype)
 
-		qty_field = {
-			"Sales Invoice": "qty",
-			"Delivery Note": "qty",
-			"Stock Entry": "fg_completed_qty",
-		}.get(self.doctype)
-
 		reserved_batches_data = self.get_reserved_batches(batches)
 		items = self.items
 		if self.doctype == "Stock Entry":
@@ -1373,6 +1367,8 @@ class StockController(AccountsController):
 					continue
 
 				value = item.get(field[1])
+				reserved_batches = {}
+
 				for row in reserved_batches_data:
 					if self.doctype in ["Sales Invoice", "Delivery Note"] and row.item_code != item.get(
 						"item_code"
@@ -1382,6 +1378,15 @@ class StockController(AccountsController):
 					if row.voucher_no == value:
 						continue
 
+					key = (row.batch_no, row.warehouse)
+					if key not in reserved_batches:
+						reserved_batches[key] = frappe._dict({"row": row, "reserved_qty": 0})
+
+					reserved_batches[key].reserved_qty += flt(row.qty)
+
+				for reserved_batch in reserved_batches.values():
+					row = reserved_batch.row
+
 					batch_qty = get_batch_qty(
 						row.batch_no,
 						row.warehouse,
@@ -1390,7 +1395,7 @@ class StockController(AccountsController):
 						consider_negative_batches=True,
 					)
 
-					if item.get(qty_field) < batch_qty:
+					if reserved_batch.reserved_qty <= batch_qty:
 						continue
 
 					frappe.throw(
@@ -1418,12 +1423,17 @@ class StockController(AccountsController):
 			.on(doctype.name == child_doc.parent)
 			.select(
 				child_doc.batch_no,
+				child_doc.qty,
 				doctype.voucher_type,
 				doctype.voucher_no,
 				doctype.item_code,
 				doctype.warehouse,
 			)
-			.where((doctype.docstatus == 1) & (child_doc.batch_no.isin(batches)))
+			.where(
+				(doctype.docstatus == 1)
+				& (doctype.status.notin(["Closed", "Delivered"]))
+				& (child_doc.batch_no.isin(batches))
+			)
 		).run(as_dict=True)
 
 	def make_gl_entries_on_cancel(self, from_repost=False):

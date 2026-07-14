@@ -1,10 +1,13 @@
 # Copyright (c) 2026, Frappe Technologies Pvt. Ltd. and contributors
 # For license information, please see license.txt
 
+from unittest.mock import patch
+
 import frappe
 
 from erpnext.accounts.doctype.journal_entry.test_journal_entry import make_journal_entry
 from erpnext.controllers.stock_controller import (
+	StockController,
 	show_accounting_ledger_preview,
 	show_stock_ledger_preview,
 )
@@ -75,3 +78,73 @@ class TestLedgerPreviewPermission(ERPNextTestSuite):
 
 		stock_ledger_result = show_stock_ledger_preview(company, "Purchase Receipt", pr.name)
 		self.assertTrue(stock_ledger_result.get("sl_data"))
+
+
+class TestReservedBatchValidation(ERPNextTestSuite):
+	def test_reserved_batch_validation_allows_qty_when_other_reservation_is_covered(self):
+		stock_entry = StockController(
+			{
+				"doctype": "Stock Entry",
+				"name": "MAT-STE-TEST",
+				"work_order": "MFG-WO-TEST-1",
+				"fg_completed_qty": 6,
+				"posting_date": "2026-01-01",
+				"posting_time": "10:00:00",
+				"items": [],
+			}
+		)
+
+		reserved_batches = [
+			frappe._dict(
+				{
+					"batch_no": "BATCH-TEST",
+					"qty": 5,
+					"voucher_type": "Work Order",
+					"voucher_no": "MFG-WO-TEST-2",
+					"item_code": "_Test Item",
+					"warehouse": "_Test Warehouse - _TC",
+				}
+			)
+		]
+
+		with (
+			patch("frappe.db.get_single_value", return_value=1),
+			patch("frappe.get_all", return_value=["BATCH-TEST"]),
+			patch.object(StockController, "get_reserved_batches", return_value=reserved_batches),
+			patch("erpnext.controllers.stock_controller.get_batch_qty", return_value=5),
+		):
+			stock_entry.validate_reserved_batches()
+
+	def test_reserved_batch_validation_blocks_when_other_reservation_is_not_covered(self):
+		stock_entry = StockController(
+			{
+				"doctype": "Stock Entry",
+				"name": "MAT-STE-TEST",
+				"work_order": "MFG-WO-TEST-1",
+				"fg_completed_qty": 6,
+				"posting_date": "2026-01-01",
+				"posting_time": "10:00:00",
+				"items": [],
+			}
+		)
+
+		reserved_batches = [
+			frappe._dict(
+				{
+					"batch_no": "BATCH-TEST",
+					"qty": 5,
+					"voucher_type": "Work Order",
+					"voucher_no": "MFG-WO-TEST-2",
+					"item_code": "_Test Item",
+					"warehouse": "_Test Warehouse - _TC",
+				}
+			)
+		]
+
+		with (
+			patch("frappe.db.get_single_value", return_value=1),
+			patch("frappe.get_all", return_value=["BATCH-TEST"]),
+			patch.object(StockController, "get_reserved_batches", return_value=reserved_batches),
+			patch("erpnext.controllers.stock_controller.get_batch_qty", return_value=4),
+		):
+			self.assertRaises(frappe.ValidationError, stock_entry.validate_reserved_batches)
